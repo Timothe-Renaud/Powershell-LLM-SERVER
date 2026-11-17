@@ -265,7 +265,7 @@ Aucune installation de Python, Node ou autre dépendance n'est nécessaire.
 
 ```powershell
 cd c:\XX\XX\XX\Dossier\
-powershell -STA -ExecutionPolicy Bypass -File "C:\Users\t.langlois-teston\Documents\_TAFF\_Script\LLM\GGUFChat.ps1"
+powershell -STA -ExecutionPolicy Bypass -File "C:\Users\XXX\XXX\GGUFChat.ps1"
 ```
 
 Ou via un double-clic sur `Lancer.bat`.
