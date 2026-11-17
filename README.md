@@ -1,3 +1,226 @@
+-- internationale version
+# GGUF Chat
+
+A PowerShell (WinForms) graphical interface to **download, load and chat with a GGUF model locally**, with no manual setup. The inference engine is [llama.cpp](https://github.com/ggml-org/llama.cpp) (`llama-server`), driven in the background by the script.
+
+Everything lives in a single file: `GGUFChat.ps1`.
+
+> **Note:** the application's interface (buttons, labels, messages) is in French. This README gives the English meaning of each element, with the French label in parentheses so you can find it on screen.
+
+---
+
+## Features
+
+- Automatic download of the **latest llama.cpp release** (CPU, Vulkan or CUDA 12) from GitHub
+- Download of a `.gguf` model from Hugging Face or any direct link, with progress bar, speed display and a cancel button
+- Support for **gated Hugging Face models** through an optional access token
+- Start / stop the `llama-server` process in the background (hidden window, logs kept)
+- **Streaming chat**: the reply is displayed live as it is generated
+- Display of the reasoning stream (`reasoning_content`) of "thinking" models in grey italics
+- Adjustable system prompt, temperature and maximum tokens
+- **Context profiles** (8k to 128k) that automatically set KV cache type, Flash Attention and cache placement
+- **Memory estimation (RAM / VRAM)** computed by reading the GGUF file metadata
+- **GPU auto-tuning**: computes how many layers to offload based on your available VRAM
+- Live context usage and generation speed (tokens/s)
+- Automatic handling of a full context (oldest messages are dropped)
+
+---
+
+## Requirements
+
+| Item | Details |
+|---|---|
+| OS | Windows 10 / 11 (x64) |
+| PowerShell | Windows PowerShell 5.1 (built into Windows) |
+| Network | Access to `api.github.com`, `github.com` and the site hosting your model (e.g. `huggingface.co`) |
+| GPU (optional) | Vulkan-capable card, or NVIDIA with a CUDA 12 driver |
+| Disk space | Depends on the model (from a few hundred MB to several tens of GB) |
+
+No Python, Node or any other dependency is required.
+
+---
+
+## Launching
+
+```powershell
+powershell -STA -ExecutionPolicy Bypass -File .\GGUFChat.ps1
+```
+
+Or double-click a `Lancer.bat` launcher if you have one.
+
+> WinForms requires STA mode. If the script is started without `-STA`, it **automatically relaunches itself** in a new STA PowerShell instance (hidden console window) and the original instance exits.
+
+---
+
+## Quick start
+
+1. **Engine**: pick the backend (`CPU`, `Vulkan` or `CUDA 12`) and click **Download llama.cpp** (*Télécharger llama.cpp*). Only needed once. The *Engine* field fills in automatically. You can also point to your own `llama-server.exe` with the `...` button.
+2. **Model**: paste the URL of a `.gguf` file into *GGUF URL* and click **Download the model** (*Télécharger le modèle*). You can also pick a local file with the `...` button.
+3. **Settings**: choose a context *Profile*, enter your VRAM, then click **Auto-tune GPU** (*Auto-régler GPU*).
+4. **Start the server** (*Démarrer le serveur*) and wait for the status line to turn green ("Serveur : prêt").
+5. **Chat**: type your message, `Enter` to send, `Shift+Enter` for a new line.
+
+---
+
+## Interface reference
+
+### Top area: configuration
+
+| Field / button | Purpose |
+|---|---|
+| **Engine** (*Moteur*) | Path to `llama-server.exe` (auto-detected if already downloaded) |
+| **Backend** + **Download llama.cpp** | Downloads and extracts the latest release (CPU, Vulkan or CUDA 12) |
+| **Model** (*Modèle*) | List of `.gguf` files in the models folder, newest first |
+| **Refresh** (*Actualiser*) / **Open models folder** (*Ouvrir le dossier des modèles*) | Refreshes the list / opens the folder in Explorer |
+| **GGUF URL** (*URL GGUF*) | Direct link to a `.gguf` file. Hugging Face `/blob/` links are automatically converted to `/resolve/` |
+| **HF Token** (*Token HF*) | Optional Hugging Face token (Llama, Gemma, etc.). Only sent to `*.huggingface.co` hosts |
+| **Cancel** (*Annuler*) | Aborts the current download (the partial file is deleted) |
+| **Profile** (*Profil*) | Context presets (see table below) |
+| **Context** (*Contexte*) | Context size in tokens (`-c`) |
+| **GPU layers** (*Couches GPU*) | Number of layers offloaded to the GPU (`-ngl`). `0` = all on CPU, `99` = everything on GPU |
+| **VRAM GB** (*VRAM Go*) | Dedicated VRAM you can actually use (leave ~0.5 GB for Windows) |
+| **Temp.** | Sampling temperature (0 to 2) |
+| **Max tokens** | Maximum length of a reply (`-1` = unlimited) |
+| **KV cache** (*Cache KV*) | Cache precision: `f16`, `q8_0` or `q4_0` |
+| **Flash Attention** | Greatly reduces compute memory. Required to quantize the KV cache |
+| **KV cache in RAM (-nkvo)** (*Cache KV en RAM*) | Keeps the KV cache in RAM to free up VRAM |
+| **Threads** | CPU cores used for computation |
+| **Start / Stop / Log** (*Démarrer / Arrêter / Journal*) | Server control, and opens the error log in Notepad |
+| **Auto-tune GPU** | Computes how many GPU layers fit in the VRAM you entered |
+| **System** (*Système*) | System prompt sent with every request |
+
+### Middle area: conversation
+
+Shows the chat history (`Vous` / You in blue, `IA` / AI in green). The reasoning of "thinking" models appears in grey italics, errors in red.
+
+### Bottom area: input
+
+| Button | Purpose |
+|---|---|
+| **Send** (*Envoyer*) | Sends the message (only enabled once the server is ready) |
+| **Stop generation** (*Stop génération*) | Interrupts the reply in progress |
+| **Clear** (*Effacer*) | Clears the conversation and the history |
+
+---
+
+## Context profiles
+
+| Profile | Context | KV cache | Flash Attention | KV cache in RAM |
+|---|---|---|---|---|
+| Balanced (8k) | 8,192 | f16 | yes | no |
+| Long (16k) | 16,384 | q8_0 | yes | no |
+| Very long (32k) | 32,768 | q8_0 | yes | yes |
+| Ultra (64k) | 65,536 | q8_0 | yes | yes |
+| Extreme (128k) | 131,072 | q4_0 | yes | yes |
+
+The default profile is **Long (16k)**. Manually changing the *Context* value switches the profile to *Custom* (*Personnalisé*). Selecting a profile automatically re-runs GPU auto-tuning when a model is selected.
+
+**KV cache choice:** `f16` = maximum quality, `q8_0` = 2x less memory with minimal loss, `q4_0` = about 3.5x less memory with a noticeable loss.
+
+---
+
+## Memory estimation and GPU auto-tuning
+
+The script reads the GGUF file header directly (architecture, layer count, embedding size, attention heads, training context) to estimate:
+
+- the **KV cache** size: `context x layers x kv_heads x (key_length + value_length) x bytes_per_element`
+- the **RAM** required (model + non-offloaded KV cache + overhead)
+- the **VRAM** required (offloaded layers + KV cache if offloaded + overhead)
+
+The estimate text changes color:
+
+| Color | Meaning |
+|---|---|
+| Green | Fits comfortably |
+| Orange | Close to the limit (RAM > 80% of free, or VRAM above the value entered) |
+| Red | Likely to overflow (RAM > 95% of free, or VRAM > 105%) |
+
+A warning is shown if the requested context exceeds the model's **training context**. Models split across several files (`...-00001-of-00003.gguf`) are handled as a whole.
+
+> This is an **estimate**: actual usage depends on the llama.cpp version and backend.
+
+---
+
+## Context management
+
+The script tracks context usage from the statistics returned by the server. When usage exceeds **80%** of the active context, the oldest exchanges (removed in user/assistant pairs) are dropped from the history before the next message is sent, and an orange notice is shown in the chat.
+
+---
+
+## Files and folders
+
+Everything is stored in `%LOCALAPPDATA%\GGUFChat`:
+
+| Folder | Contents |
+|---|---|
+| `bin\` | Extracted llama.cpp binaries |
+| `models\` | Downloaded `.gguf` models |
+| `logs\` | `server.out.log` and `server.err.log` (server output) |
+
+To uninstall completely, delete this folder.
+
+---
+
+## How it works
+
+- **Server:** `llama-server.exe` is started with a hidden window using: `-m <model> --host 127.0.0.1 --port 8089 -c <context> -ngl <layers> -np 1 -t <threads> --jinja`, plus `--flash-attn on`, `-ctk/-ctv <type>` and `--no-kv-offload` depending on the options.
+- **Network exposure:** the server only listens on `127.0.0.1:8089`, so it is not reachable from the network.
+- **Readiness check:** the UI polls `/health` every second until the server responds.
+- **API:** conversations use the OpenAI-compatible `POST /v1/chat/completions` endpoint in `stream` mode, read line by line (SSE).
+- **Responsive UI:** downloads and chat requests run in separate **runspaces**. The UI communicates with them through a synchronized hashtable and a concurrent queue, so it never freezes.
+- **Downloads:** `HttpWebRequest` with manual redirect handling (10 max). The file is written as `.part` and renamed once complete.
+- **llama.cpp binary selection:** matched by regular expression against the assets of the latest release. For CUDA 12, the `cudart` runtime is downloaded as well.
+- **On close:** downloads are cancelled and the server is stopped.
+
+---
+
+## Troubleshooting
+
+| Problem | Suggestion |
+|---|---|
+| Server stops right after starting | The error popup shows the last 10 log lines. Click **Log** for details. Common cause: not enough memory, so reduce the context or run more layers on CPU |
+| 401 / 403 error when downloading | Gated model: accept the license on Hugging Face and enter an **HF Token** |
+| "L'URL doit pointer vers un fichier .gguf" | Use a direct link to the file (`.../resolve/main/xxx.gguf`) |
+| No Windows binary found in the release | llama.cpp asset names may have changed: download it manually and select `llama-server.exe` with `...` |
+| Very slow generation | Check **GPU layers** (0 = CPU only) and the downloaded backend (Vulkan / CUDA). Avoid more threads than physical cores |
+| Model crashes when using VRAM | Only count dedicated VRAM (shared memory is too slow). Lower the GPU layers or enable `-nkvo` |
+| Estimate shows "unavailable" | Model architecture not recognized: set GPU layers manually |
+| Port 8089 already in use | Change the `$Port` variable at the top of the script |
+
+---
+
+## Customization
+
+The main settings are at the top of the script, in the **Configuration** section:
+
+```powershell
+$AppDir   = Join-Path $env:LOCALAPPDATA 'GGUFChat'   # working folder
+$Port     = 8089                                      # local server port
+```
+
+Other editable values: default URL and system prompt (`$tbUrl` and `$tbSystem` fields), context profiles (`$cbProfile.Add_SelectedIndexChanged` event) and memory margins in `Get-Estimate`.
+
+---
+
+## Known limitations
+
+- Windows only (WinForms, `win-x64` binaries)
+- One conversation and one loaded model at a time (`-np 1`)
+- History is not saved: it is lost on close or with **Clear**
+- Text only (no images or attachments)
+- The Hugging Face token is not remembered between sessions
+- The interface language is French (translating the UI strings would require editing the script)
+
+---
+
+## Credits
+
+- [llama.cpp](https://github.com/ggml-org/llama.cpp) (MIT license) for the inference engine
+- [Hugging Face](https://huggingface.co) for hosting many GGUF models
+
+
+--Version Francaise
+
 # GGUF Chat
 
 Interface graphique PowerShell (WinForms) pour **télécharger, charger et discuter avec un modèle GGUF en local**, sans rien installer à la main. Le moteur d'inférence est [llama.cpp](https://github.com/ggml-org/llama.cpp) (`llama-server`), piloté en arrière-plan par le script.
