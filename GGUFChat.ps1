@@ -9,10 +9,10 @@
     - Lance / arrête le serveur llama-server en arrière-plan
     - Chat en streaming (réponse affichée en direct), prompt système, température, etc.
 
-    Lancement :  powershell -STA -ExecutionPolicy Bypass -File C:\Users\t.langlois-teston\Documents\_TAFF\_Script\LLM\GGUFChat.ps1
+    Lancement :  powershell -STA -ExecutionPolicy Bypass -File C:\Users\XXX\XXX\GGUFChat.ps1
     (ou double-clic sur Lancer.bat)
     
-    ---  powershell -STA -ExecutionPolicy Bypass -File C:\Users\t.langlois-teston\Documents\_TAFF\_Script\LLM\GGUFChat.ps1
+    ---  powershell -STA -ExecutionPolicy Bypass -File C:\Users\XXX\XXX\GGUFChat.ps1
 #>
 
 # --- Relance en mode STA (obligatoire pour WinForms) -------------------------------------------
